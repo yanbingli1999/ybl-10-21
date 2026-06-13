@@ -97,7 +97,7 @@ export function WaitingQueue() {
                 <span className="tabular-nums text-gray-600">{beast.satisfaction}</span>
               </div>
               {isSelected && (
-                <div className="mt-2 p-2 rounded-lg bg-clinic-jade/5 border border-clinic-jade/20 text-xs space-y-1 animate-fade">
+                <div className="mt-2 p-2 rounded-lg bg-clinic-jade/5 border border-clinic-jade/20 text-xs space-y-2 animate-fade">
                   <div className="font-semibold text-clinic-deep flex items-center gap-1">
                     <span>🩺</span> 症状表现：
                   </div>
@@ -108,8 +108,21 @@ export function WaitingQueue() {
                       </span>
                     ))}
                   </div>
-                  <div className="text-[11px] text-gray-500 italic mt-1">
-                    💡 提示：根据症状选择正确的药材组合才能治愈哦
+                  <div className="font-semibold text-clinic-deep flex items-center gap-1 pt-1 border-t border-clinic-border/30">
+                    <span>🍽️</span> 近期饮食：
+                  </div>
+                  <div className="space-y-1">
+                    {beast.dietRecords.map((rec, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-[11px]">
+                        <span className="text-lg">{rec.foodEmoji}</span>
+                        <span className="text-clinic-deep font-medium">{rec.foodName}</span>
+                        <span className="text-gray-400">x{rec.amount}</span>
+                        <span className="ml-auto text-gray-500">{rec.hoursAgo}小时前</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-[11px] text-gray-500 italic">
+                    💡 提示：根据症状和饮食记录选择合适的药方与医嘱
                   </div>
                 </div>
               )}

@@ -1,12 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
-import { X, Stethoscope, Pill, Users, ArrowRight, AlertCircle, Sparkles, Brain, ChevronDown } from "lucide-react";
+import { X, Stethoscope, Pill, Users, ArrowRight, AlertCircle, Sparkles, Brain, ChevronDown, UtensilsCrossed } from "lucide-react";
 import { useGameStore, guessDiseaseFromSymptoms } from "@/store/gameStore";
 import {
   BREEDS, HERBS, PRESCRIPTIONS,
   SEVERITY_NAMES, SEVERITY_COLORS, DISEASE_NAMES,
-  ELEMENT_EMOJI, ELEMENT_NAMES,
+  ELEMENT_EMOJI, ELEMENT_NAMES, DIET_ADVICES, DISEASE_FOOD_TABOO,
 } from "@/data/gameData";
-import type { Bed, DiseaseType } from "@/types/game";
+import type { Bed, DiseaseType, DietAdviceType } from "@/types/game";
 
 interface TreatmentModalProps {
   open: boolean;
@@ -32,6 +32,7 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
   const [selectedHerbs, setSelectedHerbs] = useState<string[]>([]);
   const [selectedStaff, setSelectedStaff] = useState<string | null>(null);
   const [playerDiagnosis, setPlayerDiagnosis] = useState<DiseaseType | null>(null);
+  const [selectedDietAdvice, setSelectedDietAdvice] = useState<DietAdviceType | null>(null);
   const [showAllDiseases, setShowAllDiseases] = useState(false);
 
   const beast = useMemo(() => queue.find(b => b.id === selectedBeastId), [queue, selectedBeastId]);
@@ -55,6 +56,7 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
       setSelectedHerbs([]);
       setSelectedStaff(null);
       setPlayerDiagnosis(null);
+      setSelectedDietAdvice(null);
       setShowAllDiseases(false);
     }
   }, [open, selectedBeastId]);
@@ -89,7 +91,7 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
 
   const handleSubmit = () => {
     if (!canSubmit || !targetBed) return;
-    assignBedAndTreat(beast.id, targetBed.id, selectedStaff, selectedHerbs, playerDiagnosis);
+    assignBedAndTreat(beast.id, targetBed.id, selectedStaff, selectedHerbs, playerDiagnosis, selectedDietAdvice);
     onClose();
   };
 
@@ -206,6 +208,79 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
                 {showAllDiseases ? "收起" : "查看更多可能"}
                 <ChevronDown className={`w-3 h-3 transition-transform ${showAllDiseases ? "rotate-180" : ""}`} />
               </button>
+            </div>
+          </div>
+
+          {/* 饮食记录 + 医嘱 */}
+          <div className="card p-3 border-clinic-amber/30">
+            <div className="font-display text-sm text-clinic-deep flex items-center gap-1.5 mb-2">
+              <UtensilsCrossed className="w-4 h-4 text-clinic-amber" />
+              饮食问诊 — 近期饮食
+            </div>
+            <div className="space-y-1.5 mb-3 max-h-24 overflow-y-auto">
+              {beast.dietRecords.map((rec, idx) => {
+                const isTaboo = playerDiagnosis
+                  ? DISEASE_FOOD_TABOO[playerDiagnosis]?.includes(rec.foodId)
+                  : false;
+                return (
+                  <div
+                    key={idx}
+                    className={`flex items-center gap-2 text-[11px] p-1.5 rounded-lg ${
+                      isTaboo ? "bg-red-50 border border-red-200" : "bg-gray-50 border border-gray-100"
+                    }`}
+                  >
+                    <span className="text-lg">{rec.foodEmoji}</span>
+                    <span className={`font-medium ${isTaboo ? "text-red-700" : "text-clinic-deep"}`}>
+                      {rec.foodName}
+                    </span>
+                    <span className="text-gray-400">x{rec.amount}</span>
+                    <span className="ml-auto text-gray-500">{rec.hoursAgo}h前</span>
+                    {isTaboo && (
+                      <span className="text-[9px] px-1 py-0.5 rounded bg-red-100 text-red-600 font-medium">
+                        忌口
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t border-clinic-border/30 pt-3">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-xs font-semibold text-clinic-deep">📋 开具饮食医嘱</span>
+                <span className="text-[10px] text-gray-400 ml-auto">
+                  正确医嘱提升信任
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {Object.values(DIET_ADVICES).map(advice => {
+                  const selected = selectedDietAdvice === advice.type;
+                  return (
+                    <button
+                      key={advice.type}
+                      onClick={() => setSelectedDietAdvice(selected ? null : advice.type)}
+                      disabled={!targetBed}
+                      className={`p-2 rounded-lg border text-left transition-all disabled:opacity-50 ${
+                        selected
+                          ? "border-clinic-amber bg-clinic-amber/15 shadow-sm"
+                          : "border-gray-200 bg-white hover:border-clinic-amber/50 hover:bg-amber-50"
+                      }`}
+                    >
+                      <div className="text-xs font-medium text-clinic-deep">{advice.name}</div>
+                      <div className="text-[9px] text-gray-500 mt-0.5 leading-tight">
+                        {advice.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {playerDiagnosis && (
+                <div className="mt-2 text-[10px] text-gray-500 italic">
+                  💡 提示：
+                  {DISEASE_FOOD_TABOO[playerDiagnosis]?.length > 0
+                    ? `该病需注意饮食禁忌，合理的医嘱可提升治疗效果`
+                    : "该病对饮食要求不高，正常饮食即可"}
+                </div>
+              )}
             </div>
           </div>
 
@@ -359,6 +434,14 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
             <span className="text-clinic-deep font-semibold tabular-nums ml-auto">
               💊 {herbsTotal} 金
             </span>
+            {selectedDietAdvice && (
+              <>
+                <span className="text-gray-300">·</span>
+                <div className="text-gray-600 text-[11px]">
+                  🥗 {DIET_ADVICES[selectedDietAdvice]?.name}
+                </div>
+              </>
+            )}
             {selectedStaff && (
               <>
                 <span className="text-gray-300">·</span>

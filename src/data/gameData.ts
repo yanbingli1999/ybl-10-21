@@ -1,4 +1,4 @@
-import type { Breed, Herb, Prescription, DiseaseType, Staff } from "@/types/game";
+import type { Breed, Herb, Prescription, DiseaseType, Staff, Food, DietAdvice, DietAdviceType } from "@/types/game";
 
 export const DISEASE_SYMPTOMS: Record<DiseaseType, string[]> = {
   fever: ["体温偏高", "无精打采", "食欲不振", "鼻子发干", "魔力发热"],
@@ -367,6 +367,70 @@ export const PRESCRIPTIONS: Prescription[] = [
     successRate: 86,
   },
 ];
+
+export const FOODS: Food[] = [
+  { id: "food_rabbit_meat", name: "灵兔肉", emoji: "🍖", category: "meat", element: "neutral", description: "常见的灵兽肉食，营养丰富。" },
+  { id: "food_fish", name: "灵溪鱼", emoji: "🐟", category: "meat", element: "water", description: "产自灵溪的鲜鱼，肉质细嫩。" },
+  { id: "food_spirit_pill", name: "聚灵丹", emoji: "💊", category: "spirit", element: "light", description: "蕴含灵气的丹药，大补元气。" },
+  { id: "food_spirit_fruit", name: "灵果", emoji: "🍎", category: "plant", element: "wood", description: "山中灵果，清甜可口。" },
+  { id: "food_herb_porridge", name: "灵草粥", emoji: "🥣", category: "plant", element: "wood", description: "用灵草熬制的稀粥，清淡养胃。" },
+  { id: "food_honey_cake", name: "蜂蜜糕", emoji: "🍯", category: "snack", element: "light", description: "甜蜜的小点心，灵兽最爱。" },
+  { id: "food_spicy_meat", name: "麻辣肉干", emoji: "🌶️", category: "snack", element: "fire", description: "辛辣刺激的肉干，开胃但易上火。" },
+  { id: "food_raw_meat", name: "生肉", emoji: "🥩", category: "meat", element: "neutral", description: "未经烹制的生肉，可能带菌。" },
+  { id: "food_mushroom", name: "灵菇", emoji: "🍄", category: "plant", element: "earth", description: "山珍灵菇，鲜美滋补。" },
+  { id: "food_magic_nut", name: "魔核坚果", emoji: "🥜", category: "snack", element: "earth", description: "富含魔力的坚果，坚硬难消化。" },
+  { id: "food_cold_jelly", name: "冰粉", emoji: "🍮", category: "snack", element: "water", description: "清凉解暑的冰粉甜食。" },
+  { id: "food_bone_soup", name: "骨头汤", emoji: "🍲", category: "meat", element: "earth", description: "熬制许久的骨头汤，补骨强筋。" },
+];
+
+export const DIET_ADVICES: Record<DietAdviceType, DietAdvice> = {
+  fast: {
+    type: "fast",
+    name: "禁食",
+    description: "暂停进食，让肠胃充分休息，适用于中毒、肠胃疾病。",
+  },
+  light: {
+    type: "light",
+    name: "清淡饮食",
+    description: "食用清淡易消化的食物，忌辛辣油腻，适用于热病、过敏。",
+  },
+  tonic: {
+    type: "tonic",
+    name: "补灵调养",
+    description: "食用滋补灵气的食物，补充元气，适用于虚症、劳损。",
+  },
+  normal: {
+    type: "normal",
+    name: "正常饮食",
+    description: "无需特别忌口，保持正常饮食习惯即可。",
+  },
+};
+
+export const DISEASE_DIET_RECOMMEND: Record<DiseaseType, DietAdviceType> = {
+  fever: "light",
+  cold: "tonic",
+  poisoning: "fast",
+  fatigue: "tonic",
+  fracture: "tonic",
+  mana_disorder: "light",
+  curse: "fast",
+  parasite: "light",
+  dehydration: "light",
+  allergy: "light",
+};
+
+export const DISEASE_FOOD_TABOO: Record<DiseaseType, string[]> = {
+  fever: ["food_spicy_meat", "food_spirit_pill", "food_honey_cake"],
+  cold: ["food_cold_jelly", "food_fish"],
+  poisoning: ["food_raw_meat", "food_mushroom", "food_spicy_meat"],
+  fatigue: [],
+  fracture: ["food_magic_nut", "food_spicy_meat"],
+  mana_disorder: ["food_spirit_pill", "food_magic_nut"],
+  curse: ["food_raw_meat", "food_mushroom"],
+  parasite: ["food_raw_meat", "food_honey_cake", "food_spirit_fruit"],
+  dehydration: ["food_spicy_meat", "food_magic_nut"],
+  allergy: ["food_spicy_meat", "food_honey_cake", "food_fish"],
+};
 
 export const INITIAL_STAFF: Staff[] = [
   {

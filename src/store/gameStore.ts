@@ -13,6 +13,8 @@ import type {
   WeatherType,
   Prescription,
   TreatmentResult,
+  DietRecord,
+  DietAdviceType,
 } from "@/types/game";
 import {
   BREEDS,
@@ -26,6 +28,10 @@ import {
   NOTES_SUCCESS,
   NOTES_FAIL,
   DISEASE_NAMES,
+  FOODS,
+  DISEASE_DIET_RECOMMEND,
+  DISEASE_FOOD_TABOO,
+  DIET_ADVICES,
 } from "@/data/gameData";
 
 const DISEASE_TYPES: DiseaseType[] = [
@@ -54,6 +60,42 @@ function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function generateDietRecords(disease: DiseaseType): DietRecord[] {
+  const records: DietRecord[] = [];
+  const tabooFoods = DISEASE_FOOD_TABOO[disease];
+  const count = randomInt(2, 4);
+  const usedFoodIds = new Set<string>();
+
+  const includeTaboo = Math.random() < 0.6;
+
+  for (let i = 0; i < count; i++) {
+    let food;
+    if (includeTaboo && i === 0 && tabooFoods.length > 0) {
+      const tabooId = rand(tabooFoods);
+      food = FOODS.find(f => f.id === tabooId);
+    }
+    if (!food) {
+      let attempts = 0;
+      do {
+        food = rand(FOODS);
+        attempts++;
+      } while (usedFoodIds.has(food.id) && attempts < 20);
+    }
+    if (!food || usedFoodIds.has(food.id)) continue;
+    usedFoodIds.add(food.id);
+
+    records.push({
+      foodId: food.id,
+      foodName: food.name,
+      foodEmoji: food.emoji,
+      hoursAgo: randomInt(1, 12),
+      amount: randomInt(1, 3),
+    });
+  }
+
+  return records.sort((a, b) => a.hoursAgo - b.hoursAgo);
+}
+
 export function generateRandomBeast(day: number, time: number): Beast {
   const breed = rand(BREEDS.filter(b => b.rarity <= Math.min(5, 2 + Math.floor(day / 5))));
   const disease = rand(DISEASE_TYPES);
@@ -80,6 +122,7 @@ export function generateRandomBeast(day: number, time: number): Beast {
     satisfaction: 100,
     ownerName: rand(OWNER_NAMES),
     arrivedAt: time,
+    dietRecords: generateDietRecords(disease),
   };
 }
 
@@ -126,7 +169,7 @@ export interface GameState {
   selectBeast: (id: string | null) => void;
   selectBed: (id: string | null) => void;
   dismissBeast: (id: string) => void;
-  assignBedAndTreat: (beastId: string, bedId: string, staffId: string | null, herbIds: string[], playerDiagnosis: DiseaseType | null) => void;
+  assignBedAndTreat: (beastId: string, bedId: string, staffId: string | null, herbIds: string[], playerDiagnosis: DiseaseType | null, dietAdvice: DietAdviceType | null) => void;
   purchaseHerb: (herbId: string, qty: number) => void;
   collectFromBed: (bedId: string) => void;
   addNotification: (type: Notification["type"], message: string) => void;
@@ -150,6 +193,7 @@ function createInitialBeds(): Bed[] {
     result: "pending",
     currentPrescriptionHerbs: [],
     playerDiagnosis: null,
+    dietAdvice: null,
     startedAt: null,
     beastSnapshot: null,
   }));
@@ -256,7 +300,7 @@ export const useGameStore = create<GameState>()(
         get().addNotification("success", `采购 ${herb.name} x${qty}，花费${totalCost}金`);
       },
 
-      assignBedAndTreat: (beastId, bedId, staffId, herbIds, playerDiagnosis) => {
+      assignBedAndTreat: (beastId, bedId, staffId, herbIds, playerDiagnosis, dietAdvice) => {
         const s = get();
         const beast = s.waitingQueue.find(b => b.id === beastId);
         const bed = s.beds.find(b => b.id === bedId);
@@ -301,6 +345,7 @@ export const useGameStore = create<GameState>()(
           result: "pending" as const,
           currentPrescriptionHerbs: [...herbIds],
           playerDiagnosis,
+          dietAdvice,
           startedAt: s.currentTime,
           beastSnapshot: {
             id: beast.id,
@@ -310,6 +355,7 @@ export const useGameStore = create<GameState>()(
             severity: beast.severity,
             satisfaction: beast.satisfaction,
             symptoms: beast.symptoms,
+            dietRecords: beast.dietRecords,
           },
         } : b);
 
@@ -347,13 +393,36 @@ export const useGameStore = create<GameState>()(
 
         const breed = BREEDS.find(b => b.id === (beast?.breedId || ""));
 
+        const recommendedAdvice = DISEASE_DIET_RECOMMEND[beast.disease];
+        const dietAdviceCorrect = bed.dietAdvice ? bed.dietAdvice === recommendedAdvice : null;
+        const hasDietAdvice = bed.dietAdvice !== null;
+
         if (bed.result === "success" && beast && breed) {
           const severityMult = { mild: 1, moderate: 1.4, severe: 1.8, critical: 2.3 }[beast.severity] || 1;
-          const satMult = beast.satisfaction / 100;
+          let satMult = beast.satisfaction / 100;
           const reputationBonus = s.reputation / 100;
+
+          let extraTrustBonus = 0;
+          let extraRepBonus = 0;
+          let relapsed = false;
+
+          if (hasDietAdvice) {
+            if (dietAdviceCorrect) {
+              extraTrustBonus = 8;
+              extraRepBonus = 2;
+              satMult = Math.min(1.2, satMult + 0.1);
+            } else {
+              extraTrustBonus = -5;
+              extraRepBonus = -1;
+              if (Math.random() < 0.25) {
+                relapsed = true;
+              }
+            }
+          }
+
           const revenue = Math.floor(breed.baseFees * severityMult * (0.8 + 0.4 * satMult) * (1 + reputationBonus * 0.3));
-          let repGain = Math.ceil(3 * severityMult * satMult);
-          const trustGain = Math.ceil(10 * severityMult * satMult);
+          let repGain = Math.ceil(3 * severityMult * satMult) + extraRepBonus;
+          const trustGain = Math.ceil(10 * severityMult * satMult) + extraTrustBonus;
 
           const diagnosisCorrect = bed.playerDiagnosis === beast.disease;
           if (diagnosisCorrect) {
@@ -366,7 +435,7 @@ export const useGameStore = create<GameState>()(
           const prevVisits = prevRel?.visits ?? 0;
           const prevTrust = prevRel?.trust ?? 0;
           const newVisits = prevVisits + 1;
-          const newTrust = prevTrust + trustGain;
+          const newTrust = Math.max(0, prevTrust + trustGain);
           const nextStage = Math.floor(newTrust / 25);
           if (nextStage > (prevRel?.highestStage ?? 0) && breed.evolutionEmojis[nextStage]) {
             evolved = true;
@@ -374,7 +443,8 @@ export const useGameStore = create<GameState>()(
           }
           void newStage;
 
-          const notes = rand(NOTES_SUCCESS);
+          const baseNotes = relapsed ? rand(["虽治愈但略有反复，需注意饮食。", "基本康复，回家后务必遵守医嘱。", "治疗见效，但饮食不当恐留后患。"]) : rand(NOTES_SUCCESS);
+          const notes = baseNotes;
           const days = 1;
           const daysToHeal = days;
 
@@ -387,11 +457,14 @@ export const useGameStore = create<GameState>()(
             disease: beast.disease,
             severity: beast.severity,
             prescriptions: treatmentHerbs,
-            success: true,
-            revenue,
+            success: !relapsed,
+            revenue: relapsed ? Math.floor(revenue * 0.7) : revenue,
             daysToHeal,
             evolved,
             notes: evolved ? `${notes} 灵兽发生了进化！` : notes,
+            dietAdvice: bed.dietAdvice,
+            dietAdviceCorrect,
+            relapsed,
           };
 
           const newRel: BeastRelationship = {
@@ -402,20 +475,31 @@ export const useGameStore = create<GameState>()(
             highestStage: Math.max(nextStage, prevRel?.highestStage ?? 0),
           };
 
+          const finalRevenue = relapsed ? Math.floor(revenue * 0.7) : revenue;
           set(st => ({
-            money: st.money + revenue,
-            reputation: Math.min(100, st.reputation + repGain),
+            money: st.money + finalRevenue,
+            reputation: Math.max(0, Math.min(100, st.reputation + repGain)),
             beastRelationships: { ...st.beastRelationships, [breed.id]: newRel },
             medicalRecords: [record, ...st.medicalRecords],
           }));
-          get()._addTransaction("income", "诊金收入", revenue, `治愈 ${breed.name}·${beast.name}${evolved ? "(进化加成)" : ""}`);
+          get()._addTransaction("income", "诊金收入", finalRevenue, `治愈 ${breed.name}·${beast.name}${evolved ? "(进化加成)" : ""}${relapsed ? "(复发扣减)" : ""}`);
           const evolveMsg = evolved ? " 🎉灵兽发生进化！额外获得加成！" : "";
           const diagMsg = diagnosisCorrect ? " 🔍诊断正确！" : "";
-          get().addNotification("success", `治愈成功！获得 ${revenue} 金，声望+${repGain}，亲密度+${trustGain}${diagMsg}${evolveMsg}`);
+          const dietMsg = hasDietAdvice
+            ? dietAdviceCorrect
+              ? " 🥗医嘱正确！主人信任度提升。"
+              : " ⚠️医嘱不当！影响恢复效果。"
+            : "";
+          const relapseMsg = relapsed ? " 💔病情略有反复…" : "";
+          get().addNotification("success", `治愈成功！获得 ${finalRevenue} 金，声望+${repGain}，亲密度+${trustGain}${diagMsg}${dietMsg}${evolveMsg}${relapseMsg}`);
         } else if (bed.result === "fail" && beast) {
           const penaltyMoney = Math.floor(s.money * 0.05) + 20;
-          const penaltyRep = 5;
+          let penaltyRep = 5;
           const breedName = breed?.name || "灵兽";
+
+          if (hasDietAdvice && !dietAdviceCorrect) {
+            penaltyRep += 2;
+          }
 
           const notes = rand(NOTES_FAIL);
           const record: MedicalRecord = {
@@ -432,6 +516,9 @@ export const useGameStore = create<GameState>()(
             daysToHeal: Math.max(1, Math.ceil((s.currentTime - (bed.startedAt ?? s.currentTime)) / 24) || 1),
             evolved: false,
             notes,
+            dietAdvice: bed.dietAdvice,
+            dietAdviceCorrect,
+            relapsed: false,
           };
 
           set(st => ({
@@ -441,7 +528,8 @@ export const useGameStore = create<GameState>()(
           }));
           get()._addTransaction("expense", "误诊赔偿", penaltyMoney, `${breedName}·${beast.name} 治疗失败赔偿`);
           const realDiseaseName = DISEASE_NAMES[beast.disease];
-          get().addNotification("error", `治疗失败！确诊为「${realDiseaseName}」。赔偿 ${penaltyMoney} 金，声望-${penaltyRep}`);
+          const dietMsg = hasDietAdvice && !dietAdviceCorrect ? " 饮食医嘱不当加重了病情！" : "";
+          get().addNotification("error", `治疗失败！确诊为「${realDiseaseName}」。赔偿 ${penaltyMoney} 金，声望-${penaltyRep}${dietMsg}`);
         }
 
         // Release staff & bed
@@ -455,6 +543,7 @@ export const useGameStore = create<GameState>()(
           result: "pending" as const,
           currentPrescriptionHerbs: [],
           playerDiagnosis: null,
+          dietAdvice: null,
           startedAt: null,
           beastSnapshot: null,
         } : b);
@@ -566,7 +655,17 @@ export const useGameStore = create<GameState>()(
               // 疾病严重度减成
               const sev = b.beastSnapshot?.severity ?? "mild";
               const sevDebuff = { mild: 0, moderate: -5, severe: -10, critical: -15 }[sev] || 0;
-              finalRate = Math.max(5, Math.min(98, finalRate + sevDebuff));
+              finalRate += sevDebuff;
+              // 饮食医嘱加成/减成
+              if (b.dietAdvice && b.beastSnapshot) {
+                const recommendedAdvice = DISEASE_DIET_RECOMMEND[b.beastSnapshot.disease];
+                if (b.dietAdvice === recommendedAdvice) {
+                  finalRate += 8;
+                } else {
+                  finalRate -= 6;
+                }
+              }
+              finalRate = Math.max(5, Math.min(98, finalRate));
               result = Math.random() * 100 <= finalRate ? "success" : "fail";
             }
             return { ...b, treatmentProgress: Math.min(newProgress, b.treatmentTotal), result };

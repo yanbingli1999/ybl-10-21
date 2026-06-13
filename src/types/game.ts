@@ -12,6 +12,8 @@ export type DiseaseType =
   | "dehydration"
   | "allergy";
 
+export type DietAdviceType = "fast" | "light" | "tonic" | "normal";
+
 export type Severity = "mild" | "moderate" | "severe" | "critical";
 
 export type WeatherType = "sunny" | "cloudy" | "rainy" | "stormy" | "misty";
@@ -51,6 +53,29 @@ export interface Prescription {
   name: string;
 }
 
+export interface Food {
+  id: string;
+  name: string;
+  emoji: string;
+  category: "meat" | "plant" | "spirit" | "snack";
+  element: Element | "neutral";
+  description: string;
+}
+
+export interface DietRecord {
+  foodId: string;
+  foodName: string;
+  foodEmoji: string;
+  hoursAgo: number;
+  amount: number;
+}
+
+export interface DietAdvice {
+  type: DietAdviceType;
+  name: string;
+  description: string;
+}
+
 export interface Beast {
   id: string;
   breedId: string;
@@ -65,6 +90,7 @@ export interface Beast {
   satisfaction: number;
   ownerName: string;
   arrivedAt: number;
+  dietRecords: DietRecord[];
 }
 
 export interface Staff {
@@ -89,6 +115,7 @@ export interface Bed {
   result: TreatmentResult;
   currentPrescriptionHerbs: string[];
   playerDiagnosis: DiseaseType | null;
+  dietAdvice: DietAdviceType | null;
   startedAt: number | null;
   beastSnapshot: {
     id: string;
@@ -98,6 +125,7 @@ export interface Bed {
     severity: Severity;
     satisfaction: number;
     symptoms: string[];
+    dietRecords: DietRecord[];
   } | null;
 }
 
@@ -126,6 +154,9 @@ export interface MedicalRecord {
   daysToHeal: number;
   evolved: boolean;
   notes: string;
+  dietAdvice: DietAdviceType | null;
+  dietAdviceCorrect: boolean | null;
+  relapsed: boolean;
 }
 
 export interface Transaction {
