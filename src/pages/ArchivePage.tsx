@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { BookOpen, Heart, Star, Award, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { BookOpen, Heart, Star, Award, FileText, ChevronDown, ChevronUp, UtensilsCrossed } from "lucide-react";
 import { useGameStore } from "@/store/gameStore";
-import { BREEDS, DISEASE_NAMES, SEVERITY_NAMES, HERBS } from "@/data/gameData";
+import { BREEDS, DISEASE_NAMES, SEVERITY_NAMES, HERBS, DIET_ADVICES } from "@/data/gameData";
 import { ELEMENT_EMOJI, ELEMENT_NAMES } from "@/data/gameData";
+import type { DietAdviceType } from "@/types/game";
 
 export default function ArchivePage() {
   const discovered = useGameStore(s => s.discoveredBreeds);
@@ -14,6 +15,8 @@ export default function ArchivePage() {
   const totalCured = records.filter(r => r.success).length;
   const totalEvolved = records.filter(r => r.evolved).length;
   const totalRevenue = records.filter(r => r.success).reduce((s, r) => s + r.revenue, 0);
+  const totalRelapsed = records.filter(r => r.relapsed).length;
+  const correctDietAdviceCount = records.filter(r => r.dietAdviceCorrect === true).length;
 
   const sortedBreeds = useMemo(() => {
     return [...BREEDS].sort((a, b) => {
@@ -26,12 +29,14 @@ export default function ArchivePage() {
 
   return (
     <div className="container px-4 py-6 space-y-6 animate-fade">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { icon: BookOpen, label: "发现品种", val: `${discovered.length}/${BREEDS.length}`, color: "text-clinic-jade", bg: "from-teal-50" },
           { icon: Award, label: "成功治愈", val: totalCured, color: "text-emerald-600", bg: "from-emerald-50" },
           { icon: Star, label: "进化次数", val: totalEvolved, color: "text-clinic-amber", bg: "from-amber-50" },
           { icon: Heart, label: "累计诊金", val: totalRevenue, color: "text-clinic-crisis", bg: "from-rose-50" },
+          { icon: UtensilsCrossed, label: "医嘱正确", val: correctDietAdviceCount, color: "text-teal-600", bg: "from-teal-50" },
+          { icon: FileText, label: "复发案例", val: totalRelapsed, color: "text-orange-600", bg: "from-orange-50" },
         ].map((m, i) => (
           <div key={i} className={`card p-4 bg-gradient-to-br ${m.bg} to-white`}>
             <div className="flex items-center gap-2 mb-1">
@@ -165,6 +170,24 @@ export default function ArchivePage() {
                             ✨ 发生进化
                           </span>
                         )}
+                        {r.relapsed && (
+                          <span className="tag bg-orange-100 text-orange-700 border-orange-300">
+                            💔 病情反复
+                          </span>
+                        )}
+                        {r.dietAdvice && (
+                          <span className={`tag border ${
+                            r.dietAdviceCorrect === true
+                              ? "bg-teal-100 text-teal-700 border-teal-300"
+                              : r.dietAdviceCorrect === false
+                              ? "bg-amber-100 text-amber-700 border-amber-300"
+                              : "bg-gray-100 text-gray-600 border-gray-300"
+                          }`}>
+                            🥗 {DIET_ADVICES[r.dietAdvice as DietAdviceType]?.name ?? "饮食医嘱"}
+                            {r.dietAdviceCorrect === true && " ✓"}
+                            {r.dietAdviceCorrect === false && " ✗"}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-gray-600 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span>{r.date}</span>
@@ -196,8 +219,43 @@ export default function ArchivePage() {
                           </div>
                         </div>
                         <div className="p-2 rounded-lg bg-white/60">
+                          <div className="text-gray-500 mb-1">🥗 饮食医嘱</div>
+                          {r.dietAdvice ? (
+                            <div className="space-y-1">
+                              <div className={`font-medium ${
+                                r.dietAdviceCorrect === true
+                                  ? "text-teal-700"
+                                  : r.dietAdviceCorrect === false
+                                  ? "text-amber-700"
+                                  : "text-gray-700"
+                              }`}>
+                                {DIET_ADVICES[r.dietAdvice as DietAdviceType]?.name ?? "未记录"}
+                                {r.dietAdviceCorrect === true && " ✓ 医嘱正确"}
+                                {r.dietAdviceCorrect === false && " ✗ 医嘱不当"}
+                              </div>
+                              <div className="text-gray-500 text-[11px]">
+                                {DIET_ADVICES[r.dietAdvice as DietAdviceType]?.description}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="italic text-gray-400">未开具饮食医嘱</span>
+                          )}
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/60">
                           <div className="text-gray-500 mb-1">📝 医师手记</div>
                           <div className="text-clinic-deep italic">「{r.notes}」</div>
+                        </div>
+                        <div className="p-2 rounded-lg bg-white/60">
+                          <div className="text-gray-500 mb-1">📊 治疗结果</div>
+                          <div className="space-y-0.5 text-clinic-deep">
+                            <div>耗时：{r.daysToHeal} 天</div>
+                            {r.relapsed && (
+                              <div className="text-orange-600 font-medium">⚠️ 因饮食不当导致病情反复</div>
+                            )}
+                            {r.evolved && (
+                              <div className="text-clinic-amber font-medium">✨ 治疗期间灵兽发生进化</div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

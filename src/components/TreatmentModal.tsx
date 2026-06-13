@@ -218,7 +218,7 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
               饮食问诊 — 近期饮食
             </div>
             <div className="space-y-1.5 mb-3 max-h-24 overflow-y-auto">
-              {beast.dietRecords.map((rec, idx) => {
+              {(beast.dietRecords ?? []).map((rec, idx) => {
                 const isTaboo = playerDiagnosis
                   ? DISEASE_FOOD_TABOO[playerDiagnosis]?.includes(rec.foodId)
                   : false;
@@ -243,6 +243,11 @@ export function TreatmentModal({ open, onClose, targetBed }: TreatmentModalProps
                   </div>
                 );
               })}
+              {(!beast.dietRecords || beast.dietRecords.length === 0) && (
+                <div className="text-[11px] text-gray-400 italic p-2 text-center">
+                  暂无饮食记录
+                </div>
+              )}
             </div>
             <div className="border-t border-clinic-border/30 pt-3">
               <div className="flex items-center gap-1.5 mb-2">

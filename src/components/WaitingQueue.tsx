@@ -112,7 +112,7 @@ export function WaitingQueue() {
                     <span>🍽️</span> 近期饮食：
                   </div>
                   <div className="space-y-1">
-                    {beast.dietRecords.map((rec, idx) => (
+                    {(beast.dietRecords ?? []).map((rec, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-[11px]">
                         <span className="text-lg">{rec.foodEmoji}</span>
                         <span className="text-clinic-deep font-medium">{rec.foodName}</span>
@@ -120,6 +120,11 @@ export function WaitingQueue() {
                         <span className="ml-auto text-gray-500">{rec.hoursAgo}小时前</span>
                       </div>
                     ))}
+                    {(!beast.dietRecords || beast.dietRecords.length === 0) && (
+                      <div className="text-[11px] text-gray-400 italic">
+                        暂无饮食记录
+                      </div>
+                    )}
                   </div>
                   <div className="text-[11px] text-gray-500 italic">
                     💡 提示：根据症状和饮食记录选择合适的药方与医嘱

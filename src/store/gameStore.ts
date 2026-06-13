@@ -693,11 +693,68 @@ export const useGameStore = create<GameState>()(
     }),
     {
       name: "beast-clinic-save",
-      version: 1,
-      merge: (persisted, current) => ({ ...current, ...(persisted as object) }),
+      version: 2,
+      migrate: (persistedState: unknown, version: number) => {
+        const state = { ...(persistedState as Record<string, unknown>) };
+        if (version < 2) {
+          if (Array.isArray(state.waitingQueue)) {
+            state.waitingQueue = (state.waitingQueue as Beast[]).map(b => ({
+              ...b,
+              dietRecords: (b as Beast).dietRecords ?? [],
+            }));
+          }
+          if (Array.isArray(state.beds)) {
+            state.beds = (state.beds as Bed[]).map(bed => ({
+              ...bed,
+              dietAdvice: (bed as Bed).dietAdvice ?? null,
+              beastSnapshot: bed.beastSnapshot ? {
+                ...bed.beastSnapshot,
+                dietRecords: (bed.beastSnapshot as { dietRecords?: DietRecord[] }).dietRecords ?? [],
+              } : null,
+            }));
+          }
+          if (Array.isArray(state.medicalRecords)) {
+            state.medicalRecords = (state.medicalRecords as MedicalRecord[]).map(r => ({
+              ...r,
+              dietAdvice: (r as MedicalRecord).dietAdvice ?? null,
+              dietAdviceCorrect: (r as MedicalRecord).dietAdviceCorrect ?? null,
+              relapsed: (r as MedicalRecord).relapsed ?? false,
+            }));
+          }
+        }
+        return state as unknown as GameState;
+      },
+      merge: (persisted, current) => {
+        const p = persisted as Record<string, unknown>;
+        const merged = { ...current, ...p };
+        if (Array.isArray(p.waitingQueue)) {
+          merged.waitingQueue = (p.waitingQueue as Beast[]).map(b => ({
+            ...b,
+            dietRecords: b.dietRecords ?? [],
+          }));
+        }
+        if (Array.isArray(p.beds)) {
+          merged.beds = (p.beds as Bed[]).map(bed => ({
+            ...bed,
+            dietAdvice: bed.dietAdvice ?? null,
+            beastSnapshot: bed.beastSnapshot ? {
+              ...bed.beastSnapshot,
+              dietRecords: (bed.beastSnapshot as { dietRecords?: DietRecord[] }).dietRecords ?? [],
+            } : null,
+          }));
+        }
+        if (Array.isArray(p.medicalRecords)) {
+          merged.medicalRecords = (p.medicalRecords as MedicalRecord[]).map(r => ({
+            ...r,
+            dietAdvice: r.dietAdvice ?? null,
+            dietAdviceCorrect: r.dietAdviceCorrect ?? null,
+            relapsed: r.relapsed ?? false,
+          }));
+        }
+        return merged;
+      },
       onRehydrateStorage: () => (state) => {
         if (state && state.waitingQueue.length === 0 && state.medicalRecords.length === 0) {
-          // 全新存档
           setTimeout(() => state._spawnInitialBeasts(), 100);
         }
       },
